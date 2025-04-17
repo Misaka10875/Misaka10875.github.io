@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <title>Weather Forecast</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Left sidebar -->
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <!-- This can be a LOGO or text identifier -->
+        <h2 class="logo">MyWeather</h2>
+    </div>
+    <!-- Navigation menu -->
+    <nav class="sidebar-nav">
+        <ul>
+            <li><a href="#" class="active">Home</a></li>
+            <li><a href="#">Forecast</a></li>
+            <li><a href="#">Locations</a></li>
+            <li><a href="#">Analytics</a></li>
+            <li><a href="#">Calendar</a></li>
+            <li><a href="#">Settings</a></li>
+        </ul>
+    </nav>
+</aside>
+
+<!-- Main content area -->
+<main class="main-content">
+    <!-- Middle main weather information layout -->
+    <section class="content-section">
+        <!-- Current city and time -->
+        <div class="current-location">
+            <h3 id="city-name">Hong Kong SAR</h3>
+            <p id="current-time"></p>
+            <img
+                    height="100%"
+                    width="auto"
+                    src="hongkongitinerary.jpg"
+                    alt="Hong Kong"
+                    class="hk-img"
+            />
+        </div>
+
+        <!-- Current weather card -->
+        <div class="current-weather-card">
+            <div class="temp-info">
+                <h1 style="font-size: 5em" id="average-temp">114514°C</h1>
+                <button class="detail-btn" id="detail-btn" style="font-size: 1em">Detailed Temperature</button>
+            </div>
+            <!-- Example image, replace with actual image as needed -->
+            <div class="weather-image" id="weather-image">
+                <!-- Weather icon will be dynamically loaded via API -->
+            </div>
+        </div>
+
+        <!-- Today's highlights -->
+        <div class="today-highlights">
+            <h2>Today's Highlights</h2>
+            <div class="highlight-grid">
+                <div class="highlight-card">
+                    <h4>Precipitation</h4>
+                    <p id="precipitation">0%</p>
+                </div>
+                <div class="highlight-card">
+                    <h4>Humidity</h4>
+                    <p id="humidity">63%</p>
+                </div>
+                <div class="highlight-card">
+                    <h4>Wind</h4>
+                    <p id="wind">10 km/h</p>
+                </div>
+                <div class="highlight-card">
+                    <h4>Sunrise & Sunset</h4>
+                    <p id="sunrise-sunset">16:18 AM - 17:27 PM</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weather overview -->
+        <div class="weather-overview">
+            <h2>Weather Overview</h2>
+            <div class="overview-content" id="overview-content">
+                <!-- Weather overview content will be dynamically loaded via API -->
+            </div>
+        </div>
+
+        <!-- 3-day forecast -->
+        <div class="three-days-forecast">
+            <h2>3 Days Forecast</h2>
+            <div class="forecast-cards" id="forecast-cards">
+                <!-- 3-day forecast will be dynamically loaded via API -->
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Popup window -->
+<div class="popup-window" id="popup-window">
+    <div class="popup-header">
+        <h3>Detailed Temperature</h3>
+        <button class="close-btn" id="close-popup">&times;</button>
+    </div>
+    <div class="temperature-list" id="temperature-list">
+        <!-- Temperature list will be dynamically loaded via API -->
+    </div>
+</div>
+
+<script>
+    // Fetch data from API every 5 seconds and update the page
+    setInterval(fetchWeatherData, 5000);
+
+    // Fetch data immediately when the page is loaded
+    window.onload = function() {
+        fetchWeatherData();
+        updateTime();
+    };
+
+    // Update the current time
+    function updateTime() {
+        const now = new Date();
+        const options = {
+            weekday: 'long',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        };
+        document.getElementById('current-time').textContent = now.toLocaleDateString('en-US', options);
+        setTimeout(updateTime, 1000);
+    }
+
+    function fetchWeatherData() {
+        // Fetch current weather data
+        fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en')
+            .then(response => response.json())
+            .then(data => {
+                // Calculate average temperature
+                const temperatureData = data.temperature.data;
+                let sumTemp = 0;
+                temperatureData.forEach(item => {
+                    sumTemp += item.value;
+                });
+                const avgTemp = (sumTemp / temperatureData.length).toFixed(1);
+                document.getElementById('average-temp').textContent = avgTemp + '°C';
+
+                // Update humidity
+                document.getElementById('humidity').textContent = data.humidity.data[0].value + '%';
+
+                // Load detailed temperature information into the popup window
+                const temperatureList = document.getElementById('temperature-list');
+                temperatureList.innerHTML = '';
+
+                // Sort by place name alphabetically
+                const sortedTemperatureData = [...temperatureData].sort((a, b) => {
+                    return a.place.localeCompare(b.place);
+                });
+
+                sortedTemperatureData.forEach(item => {
+                    const tempItem = document.createElement('div');
+                    tempItem.className = 'temperature-item';
+
+                    tempItem.innerHTML = `
+                            <p>${item.place}</p>
+                            <p>${item.value}°C</p>
+                        `;
+
+                    temperatureList.appendChild(tempItem);
+                });
+            })
+            .catch(error => console.error('Error fetching current weather data:', error));
+
+        // Fetch 9-day weather forecast data
+        fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en')
+            .then(response => response.json())
+            .then(data => {
+                // Update 3-day forecast
+                const forecastCards = document.getElementById('forecast-cards');
+                forecastCards.innerHTML = '';
+
+                for (let i = 0; i < 3; i++) {
+                    const forecast = data.weatherForecast[i];
+                    const card = document.createElement('div');
+                    card.className = 'forecast-card';
+
+                    const date = new Date(forecast.forecastDate);
+                    const options = { weekday: 'long' };
+                    const dayName = date.toLocaleDateString('zh-CN', options);
+
+                    card.innerHTML = `
+                            <h4>${dayName}</h4>
+                            <p>${forecast.forecastMaxtemp.value}° / ${forecast.forecastMintemp.value}°</p>
+                        `;
+
+                    forecastCards.appendChild(card);
+                }
+            })
+            .catch(error => console.error('Error fetching forecast data:', error));
+
+        // Fetch weather overview data
+        fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=en')
+            .then(response => response.json())
+            .then(data => {
+                // Update weather overview
+                const overviewContent = document.getElementById('overview-content');
+                overviewContent.innerHTML = '';
+
+                const overviewItems = [
+                    { label: 'General Situation', value: data.generalSituation },
+                    { label: 'Forecast Period', value: data.forecastPeriod },
+                    { label: 'Forecast Description', value: data.forecastDesc },
+                    { label: 'Update Time', value: data.updateTime }
+                ];
+
+                overviewItems.forEach(item => {
+                    const overviewItem = document.createElement('div');
+                    overviewItem.className = 'overview-item';
+
+                    overviewItem.innerHTML = `
+                            <strong>${item.label}:</strong> ${item.value}
+                        `;
+
+                    overviewContent.appendChild(overviewItem);
+                });
+            })
+            .catch(error => console.error('Error fetching weather overview data:', error));
+    }
+
+    // Show popup window
+    document.getElementById('detail-btn').addEventListener('click', function() {
+        document.getElementById('popup-window').style.display = 'block';
+    });
+
+    // Close popup window
+    document.getElementById('close-popup').addEventListener('click', function() {
+        document.getElementById('popup-window').style.display = 'none';
+    });
+</script>
+</body>
+</html>
